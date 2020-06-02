@@ -40,6 +40,8 @@ def get_args():
 
 def store_contribute(base_url, pr_number, headers, auth):
     global PR_total, logger, r, args
+    if r.hexists(args.repo, 'prcount_'+str(pr_number)):
+        return 0
     try:
         url = base_url + str(pr_number)
         logger.debug('request : ' + url)
@@ -126,15 +128,11 @@ def get_PR_contribute():
         auth = None
     else:
         auth = HTTPBasicAuth(args.user, args.secret)
-        print('-'*100)
-        print(auth)
 
 
     last_pr = []
 
     for pr_number in range(1, PR_total+1):
-        if r.hexists(args.repo, 'prcount_'+str(pr_number)):
-            continue
         state = store_contribute(base_url, pr_number, headers, auth)
         if state == 1:
             last_pr.append(pr_number)

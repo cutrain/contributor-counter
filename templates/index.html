@@ -1,38 +1,82 @@
 <!DOCTYPE HTML5>
 <html>
 
-<head>
-  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
-  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
-</head>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  </head>
 
-<body>
-  {% raw %}
-  <el-table id='app'
-          :data="tableData"
-       stripe
-       style="width:100%">
-    <el-table-column
-       prop="uname"
-       label="username"
-       width="180">
-    </el-table-column>
-    <el-table-column
-       prop="contribute"
-       label="contribute"
-       width="180">
-    </el-table-column>
-  </el-table>
-  </div>
+  <body>
+    {% raw %}
+          <div id="app">
+    <el-row type="flex" class="row-bg" justify='space-around'>
+      <el-col :span="6"><div class="grid-content bg-purple"></div></el-col>
+      <el-col :span="6"><div class="grid-content bg-purple">
+            <div class="block" >
+              <el-pagination
+                 small
+                 @size-change="sizeChange"
+                 @current-change="currentChange"
+                 :current-page="currentPage"
+                 :page-sizes="[10, 15, 30, 50, 100]"
+                 :page-size="pageSize"
+                 pager-count=4
+                 layout="total, sizes, prev, pager, next, jumper"
+                 :total="totalNum">
+              </el-pagination>
+            </div>
+            <el-table
+               :data="tableData"
+               @sort-change="sort_data"
+               :default-sort="{prop:'merged', order: 'descending'}"
+               style="width:100%">
+              <el-table-column
+               prop="uname"
+               label="username"
+               sortable
+               :sort-orders=  "['ascending', 'descending']"
+               width="180">
+              </el-table-column>
+              <el-table-column
+               prop="merged"
+               label="contribute"
+               sortable
+               :sort-orders=  "['ascending', 'descending']"
+               width="180">
+              </el-table-column>
+            </el-table>
+        </div></el-col>
+        <el-col :span="6"><div class="grid-content bg-purple"></div></el-col>
+    </el-row>
+          </div>
   {% endraw %}
 </body>
 
 <script>
+/* rank_data = [
+  {
+    'merged':<int>,
+    'open':<int>,
+    'open_draft':<int>,
+    'close':<int>,
+    'close_draft':<int>,
+    'uid':<int>,
+    'uname':<str>,
+
+  },
+]
+*/
 var rank_data = {{rank_data|tojson}};
+tableDataAll = []
 rank_data.forEach((v,i) => {
-  v.url = "https://avatars2.githubusercontent.com/u/" + v.uid + "?s=40";
-})
+  v.icon_url = "https://avatars2.githubusercontent.com/u/" + v.uid + "?s=40";
+  if (v.merged > 0)
+    tableDataAll.push(v);
+});
+tableDataAll.sort((a,b)=>{
+  return b.merged - a.merged;
+});
 </script>
 <script src="{{url_for('static', filename='rank.js')}}"> </script>
 

@@ -44,56 +44,21 @@ def loads(str_or_bytes, default):
         return default
     return json.loads(str_or_bytes)
 
-
-@app.route('/test', methods=['GET', 'POST'])
-def index_test():
-    global r, args
-    alluser = r.hget(args.repo, 'alluser')
-    alluser = loads(alluser, [])
-    if len(alluser) > 0:
-        alluser = list(map(lambda s:'userdata_'+str(s), alluser))
-        rank_data = r.hmget(args.repo, alluser)
-        for i in range(len(rank_data)):
-            rank_data[i] = loads(rank_data[i], {})
-    else:
-        rank_data = {}
-    logger.debug(rank_data)
-    all_data = r.hgetall(args.repo)
-    logger.debug(all_data)
-    return render_template('index.html', rank_data=rank_data)
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global r, args
-    alluser = r.hget(args.repo, 'alluser')
-    alluser = loads(alluser, [])
-    if len(alluser) > 0:
-        alluser = list(map(lambda s:'userdata_'+str(s), alluser))
-        rank_data = r.hmget(args.repo, alluser)
+    userlist = r.hget(args.repo, 'alluser')
+    userlist = loads(userlist, [])
+    if len(userlist) > 0:
+        userlist = list(map(lambda s:'userdata_'+str(s), userlist))
+        rank_data = r.hmget(args.repo, userlist)
         for i in range(len(rank_data)):
             rank_data[i] = loads(rank_data[i], {})
     else:
-        rank_data = {}
+        rank_data = []
     logger.debug(rank_data)
-    all_data = r.hgetall(args.repo)
-    logger.debug(all_data)
-    ret_data = []
-    for i in range(len(rank_data)):
-        data = (
-            rank_data[i]['merged'],
-            rank_data[i]['uname'],
-            rank_data[i]['uid'],
-        )
-        ret_data.append(data)
-    ret_data = sorted(ret_data, reverse=True)
-    for i in range(len(rank_data)):
-        ret_data[i] = {
-            'uname':ret_data[i][1],
-            'uid':ret_data[i][2],
-            'contribute':ret_data[i][0],
-        }
 
-    return render_template('index.html', rank_data=ret_data)
+    return render_template('index.html', rank_data=rank_data)
 
 
 
