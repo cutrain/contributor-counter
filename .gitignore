@@ -1,0 +1,13 @@
+env.sh
+tmp
+
+tidb/
+venv/
+__pycache__/
+
+*.pyc
+*.tmp
+*.swp
+*.swo
+*.log
+

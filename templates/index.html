@@ -1,0 +1,40 @@
+<!DOCTYPE HTML5>
+<html>
+
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+</head>
+
+<body>
+  {% raw %}
+  <el-table id='app'
+          :data="tableData"
+       stripe
+       style="width:100%">
+    <el-table-column
+       prop="uname"
+       label="username"
+       width="180">
+    </el-table-column>
+    <el-table-column
+       prop="contribute"
+       label="contribute"
+       width="180">
+    </el-table-column>
+  </el-table>
+  </div>
+  {% endraw %}
+</body>
+
+<script>
+var rank_data = {{rank_data|tojson}};
+rank_data.forEach((v,i) => {
+  v.url = "https://avatars2.githubusercontent.com/u/" + v.uid + "?s=40";
+})
+</script>
+<script src="{{url_for('static', filename='rank.js')}}"> </script>
+
+
+</html>
