@@ -49,7 +49,7 @@ var app = {
   },
   data() {
     return {
-      pageSize: 15,
+      pageSize: 10,
       currentPage: 1,
       tableData: [],
       tableDataAll: tableDataAll
