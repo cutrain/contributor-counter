@@ -1,6 +1,7 @@
 # Contributor Counter
 This is a service showing the contribute of specific repo
 
+Contribution is calculated by counting all authors of **open & closed** pull requests 
 ## Usage
 
 ### Auto Deployment
@@ -48,6 +49,6 @@ python3 app.py --host=<host> --port=<port> --redis_host=localhost --redis_port=6
 ## Others
 using github API
 ```url
-https://api.github.com/repos/{repo}/pulls?type=pr&state=closed&sort=asc&per_page=100&page={page}
+https://api.github.com/repos/{repo}/pulls?state=all&sort=created&direction=asc&per_page=100&page={page}
 ```
 

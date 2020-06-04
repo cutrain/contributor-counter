@@ -27,7 +27,7 @@
             <el-table
                :data="tableData"
                @sort-change="sort_data"
-               :default-sort="{prop:'closed', order: 'descending'}"
+               :default-sort="{prop:'contribute', order: 'descending'}"
                style="width:100%">
               <el-table-column
                label="user"
@@ -44,7 +44,7 @@
                 </template>
               </el-table-column>
               <el-table-column
-               prop="closed"
+               prop="contribute"
                label="contribute"
                sortable
                :sort-orders=  "['ascending', 'descending']"
@@ -74,12 +74,13 @@ var rank_data = {{rank_data|tojson}};
 tableDataAll = []
 rank_data.forEach((v,i) => {
   v.icon = "<img src='https://avatars2.githubusercontent.com/u/" + v.uid + "?s=40' style='width:40px;height:40px;' alt='" + v.uname + "' />";
+  v.contribute = v.closed + v.closed_draft + v.open + v.open_draft;
   console.log(v.icon);
-  if (v.closed > 0)
+  if (v.contribute > 0)
     tableDataAll.push(v);
 });
 tableDataAll.sort((a,b)=>{
-  return b.closed - a.closed;
+  return b.contribute - a.contribute;
 });
 </script>
 <script src="{{url_for('static', filename='rank.js')}}"> </script>

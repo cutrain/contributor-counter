@@ -46,7 +46,11 @@ def search_all(base_url, headers, auth, url_args):
     '''
     global logger
     page_template = '&page={page}'
-    page = 1
+    page = r.hget(repo, 'last_page')
+    if page is None:
+        page = 1
+    else:
+        page =int(page)
     url = base_url.format(**url_args)
     while True:
         try:
@@ -65,12 +69,13 @@ def search_all(base_url, headers, auth, url_args):
                 logger.info("get {} data".format(l))
                 logger.debug(res)
                 if l == 0:
-                    return
+                    break
                 yield res
+                r.hset(repo, 'last_page', page)
                 page += 1
             elif res.status_code == 404:
                 logger.info('404')
-                return
+                break
             else:
                 logger.info('get status code {}, wait 5 seconds'.format(res.status_code))
                 sleep(5)
@@ -78,7 +83,7 @@ def search_all(base_url, headers, auth, url_args):
         except KeyboardInterrupt:
             exit(0)
         except GeneratorExit:
-            return
+            break
         except:
             logger.error('Catch an exception.', exc_info=True)
             logger.info('get an error, wait 5 seconds')
@@ -153,7 +158,7 @@ def update_contribute():
     url_args = {
         'repo':repo,
     }
-    base_url = 'https://api.github.com/repos/{repo}/pulls?type=pr&state=closed&sort=asc&per_page=100'
+    base_url = 'https://api.github.com/repos/{repo}/pulls?state=all&sort=created&direction=asc&per_page=100'
     # initial http parameters
     headers = {
         'User-Agent':args.user if args.user != '' else 'contributor-counter',
