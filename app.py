@@ -70,6 +70,7 @@ if __name__ == '__main__':
     logger = set_logger()
     logger.debug(args)
 
+    # global variables
     repo = args.repo
     r = redis.Redis(
         host=args.redis_host,

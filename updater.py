@@ -96,16 +96,6 @@ def strptime(date):
     format_str = '%Y-%m-%dT%H:%M:%SZ'
     return datetime.strptime(date, format_str)
 
-    global r, repo
-    # date format "2000-01-01T01:02:03Z"
-    format_str = '%Y-%m-%dT%H:%M:%SZ'
-    date = datetime.strptime(date, format_str)
-    newest_date = r.hget(repo, 'newest_date')
-    if newest_date is None:
-        newest_date = "2000-01-01T00:00:00Z"
-    newest_date = datetime.strptime(newest_date, format_str)
-    return date < newest_date
-
 def get_user_data(uid, uname):
     global r, repo
     user_data = r.hget(repo, 'userdata_'+str(uid))
@@ -146,7 +136,6 @@ def store_contribute(data):
         newest_date = strptime(newest_date)
 
         if update_date < newest_date:
-            print(skip)
             continue
 
         pr_data = {
@@ -193,6 +182,7 @@ def update_contribute():
         'repo':repo,
     }
     base_url = "https://api.github.com/search/issues?q={repo}+type:pr+updated:>={date}&sort=updated&type=Issues&order=asc&per_page=100"
+    # initial http parameters
     headers = {
         'User-Agent':args.user if args.user != '' else 'contributor-counter',
         'Accept': 'application/vnd.github.v3+json',
@@ -206,6 +196,7 @@ def update_contribute():
     else:
         auth = HTTPBasicAuth(args.user, args.secret)
 
+    # process each page
     for data in search_all(base_url, headers, auth, url_args):
         store_contribute(data)
 
