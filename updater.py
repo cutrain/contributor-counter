@@ -7,15 +7,13 @@ import requests
 import argparse
 
 from time import sleep
+from datetime import datetime
 from requests.auth import HTTPBasicAuth
-
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-PR_total = 17573
 
 def set_logger():
     formatter = logging.Formatter('%(levelname)s %(asctime)s %(message)s')
     logger = logging.getLogger(__name__)
-    logger.setLevel('DEBUG')
+    logger.setLevel('INFO')
 
     # file handle
     handler = logging.FileHandler('server.log')
@@ -32,120 +30,186 @@ def get_args():
     parser = argparse.ArgumentParser(description='This is a crawler for counting repo\'s contributes')
     parser.add_argument('--repo', default='pingcap/tidb', type=str)
     parser.add_argument('--user', default='', type=str)
-    parser.add_argument('--secret', default='', type=str)
-    parser.add_argument('--flush', action='store_true')
+    parser.add_argument('--password', default='', type=str)
+    parser.add_argument('--token', default='', type=str)
+
+    parser.add_argument('--redis_host', default='localhost', type=str)
+    parser.add_argument('--redis_port', default=6379, type=int)
+    parser.add_argument('--redis_db', default=0, type=int)
+    parser.add_argument('--flush', action='store_true', help="Delete repo's data from redis")
 
     args = parser.parse_args()
     return args
 
-def store_contribute(base_url, pr_number, headers, auth):
-    global PR_total, logger, r, args
-    if r.hexists(args.repo, 'prcount_'+str(pr_number)):
-        return 0
-    try:
-        url = base_url + str(pr_number)
-        logger.debug('request : ' + url)
-        res = requests.get(url, auth=auth, headers=headers, timeout=5)
-        logger.debug(res.status_code)
-        res.close()
-        if res.status_code == 200:
-            # update new pull request info
-            res = json.loads(res.text)
-            logger.debug(res)
-            pr_data = {
-                'prid':res['id'],
-                'uname':res['user']['login'],
-                'uid':res['user']['id'],
-                'state':res['state'],
-                'merged':res['merged'],
-                'draft':res['draft'],
-            }
-            logger.info(pr_data)
+def search_all(base_url, headers, auth, url_args):
+    '''
+    Generator of seaching url by each page
+    '''
+    global logger
+    page_template = '&page={page}'
+    page = 1
+    url = base_url.format(**url_args)
+    while True:
+        try:
+            # get page url and send request
+            page_url = url + page_template.format(page=page)
+            logger.info('Access: %s' % page_url)
+            res = requests.get(page_url, auth=auth, headers=headers)
+            res.close()
+            logger.debug(res.status_code)
 
-            # update user's PR contribute
-            data = r.hget(args.repo, 'userdata_'+str(pr_data['uid']))
-            if data == None:
-                data = {
-                    'merged':0,
-                    'open_draft':0,
-                    'open':0,
-                    'closed_draft':0,
-                    'closed':0,
-                    'uid':pr_data['uid'],
-                    'uname':pr_data['uname']
-                }
+            # Check status code
+            if res.status_code == 200:
+                res = json.loads(res.text)
+                total_count = res['total_count']
+                logger.info("get json data")
+                logger.info("total count : {} at page : {}".format(total_count, page))
+                logger.debug(res)
+                yield res['items']
+                if page*100 >= total_count:
+                    logger.info('search reach the end')
+                    return
+                page += 1
+            elif res.status_code == 404:
+                logger.info('404')
+                return
+            elif res.status_code == 422:
+                logger.info('reach search limit')
+                url_args['date'] = r.hget(repo, 'newest_date')[:10]
+                url = base_url.format(**url_args)
+                page = 1
             else:
-                data = json.loads(data)
-            if pr_data['merged']:
-                data['merged'] += 1
-            else:
-                index = pr_data['state'] + ('_draft' if pr_data['draft'] else '')
-                data[index] += 1
+                logger.info('get status code {}, wait 5 seconds'.format(res.status_code))
+                sleep(5)
+                logger.info('retry')
+        except KeyboardInterrupt:
+            exit(0)
+        except GeneratorExit:
+            return
+        except:
+            logger.error('Catch an exception.', exc_info=True)
+            logger.info('get an error, wait 5 seconds')
+            sleep(5)
+            logger.info('retry')
 
-            # update new user
-            alluser = r.hget(args.repo, 'alluser')
-            if alluser == None:
-                alluser = []
-            else:
-                alluser = json.loads(alluser)
-            if pr_data['uid'] not in alluser:
-                alluser.append(pr_data['uid'])
+def strptime(date):
+    format_str = '%Y-%m-%dT%H:%M:%SZ'
+    return datetime.strptime(date, format_str)
 
-            logger.info(data)
+    global r, repo
+    # date format "2000-01-01T01:02:03Z"
+    format_str = '%Y-%m-%dT%H:%M:%SZ'
+    date = datetime.strptime(date, format_str)
+    newest_date = r.hget(repo, 'newest_date')
+    if newest_date is None:
+        newest_date = "2000-01-01T00:00:00Z"
+    newest_date = datetime.strptime(newest_date, format_str)
+    return date < newest_date
 
-
-            mapset = {
-                'prcount_'+str(pr_number):1,
-                'userdata_'+str(pr_data['uid']):json.dumps(data),
-                'prdata_'+str(pr_number):json.dumps(pr_data),
-                'alluser':json.dumps(alluser),
-            }
-            r.hmset(args.repo, mapset)
-            return 0
-        elif res.status_code == 404:
-            logger.info('skip %s' % pr_number)
-            r.hset(args.repo, 'prcount_'+str(pr_number), 0)
-            return 0
+def get_user_data(uid, uname):
+    global r, repo
+    user_data = r.hget(repo, 'userdata_'+str(uid))
+    if user_data == None:
+        # create new user in the redis
+        user_data = {
+            'open_draft':0,
+            'open':0,
+            'closed_draft':0,
+            'closed':0,
+            'uid':uid,
+            'uname':uname,
+        }
+        alluser = r.hget(repo, 'alluser')
+        if alluser is None:
+            alluser = []
         else:
-            logger.info('skip %s' % pr_number)
-            return 1
-    except KeyboardInterrupt:
-        exit(0)
-    except:
-        logger.error('Catch an exception.', exc_info=True)
-        return 1
+            alluser = json.loads(alluser)
+        alluser.append(uid)
+        r.hset(repo, 'alluser', json.dumps(alluser))
+        logger.info('created new user {}/{}'.format(uname, uid))
+    else:
+        user_data = json.loads(user_data)
+    return user_data
 
-def get_PR_contribute():
-    global r, args
-    base_url = 'https://api.github.com/repos/' + args.repo + '/pulls/'
+def change_user_data(user_data, pr_data, value):
+    index = pr_data['state'] + ('_draft' if pr_data['draft'] else '')
+    user_data[index] += value
+
+def store_contribute(data):
+    global r, repo
+    for pr in data:
+        update_date = strptime(pr['updated_at'])
+        create_date = strptime(pr['created_at'])
+        newest_date = r.hget(repo, 'newst_date')
+        if newest_date is None:
+            newest_date = "2000-01-01T00:00:00Z"
+        newest_date = strptime(newest_date)
+
+        if update_date < newest_date:
+            print(skip)
+            continue
+
+        pr_data = {
+            'pr_id':pr['id'],
+            'pr_number':pr['number'],
+            'uname':pr['user']['login'],
+            'uid':pr['user']['id'],
+            'state':pr['state'],
+            'draft':pr['draft'],
+        }
+        logger.debug(pr_data)
+
+        user_key = 'userdata_' + str(pr_data['uid'])
+        pr_key = 'prdata_' + str(pr_data['pr_number'])
+
+        # update user's PR contribute
+        user_data = get_user_data(pr_data['uid'], pr_data['uname'])
+
+        # check and delete old contribute
+        if r.hexists(repo, pr_key):
+            old_pr_data = r.hget(repo, pr_key)
+            old_pr_data = json.loads(old_pr_data)
+            change_user_data(user_data, old_pr_data, -1)
+        change_user_data(user_data, pr_data, 1)
+
+        change_map = {
+            pr_key:json.dumps(pr_data),
+            user_key:json.dumps(user_data),
+        }
+        if create_date > newest_date:
+            change_map.update({'newest_date': pr['created_at']})
+        r.hmset(repo, change_map)
+
+def update_contribute():
+    global r, args, repo
+    date = r.hget(repo, 'newest_date')
+    if date is None:
+        date = "2000-01-01"
+    else:
+        date = date[:10]
+
+    url_args = {
+        'date':date,
+        'repo':repo,
+    }
+    base_url = "https://api.github.com/search/issues?q={repo}+type:pr+updated:>={date}&sort=updated&type=Issues&order=asc&per_page=100"
     headers = {
-        'User-Agent':'cutrain',
+        'User-Agent':args.user if args.user != '' else 'contributor-counter',
         'Accept': 'application/vnd.github.v3+json',
         'Connection':'close',
-
     }
-    if args.user == '' and args.secret == '':
+    if args.token != '':
+        headers.update({'Authorization':'token {}'.format(args.token)})
+        auth = None
+    elif args.user == '' and args.secret == '':
         auth = None
     else:
         auth = HTTPBasicAuth(args.user, args.secret)
 
+    for data in search_all(base_url, headers, auth, url_args):
+        store_contribute(data)
 
-    last_pr = []
-
-    for pr_number in range(1, PR_total+1):
-        state = store_contribute(base_url, pr_number, headers, auth)
-        if state == 1:
-            last_pr.append(pr_number)
-            sleep(5)
-
-    while len(last_pr) > 0:
-        failed_pr = []
-        for pr_number in last_pr:
-            state = store_contribute(base_url, pr_number, headers, auth)
-            if state == 1:
-                failed_pr.append(pr_number)
-                sleep(5)
-        last_pr = failed_pr
+    logger.info('finish update')
 
 
 
@@ -154,5 +218,17 @@ if __name__ == '__main__':
     logger = set_logger()
     logger.debug(args)
 
-    get_PR_contribute()
+    repo = args.repo
+    r = redis.Redis(
+        host=args.redis_host,
+        port=args.redis_port,
+        db=args.redis_db,
+        decode_responses=True,
+    )
+
+    if args.flush:
+        logger.info('deleting %s data' % repo)
+        r.delete(repo)
+
+    update_contribute()
     logger.info("Complete")

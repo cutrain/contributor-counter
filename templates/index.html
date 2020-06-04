@@ -27,7 +27,7 @@
             <el-table
                :data="tableData"
                @sort-change="sort_data"
-               :default-sort="{prop:'merged', order: 'descending'}"
+               :default-sort="{prop:'closed', order: 'descending'}"
                style="width:100%">
               <el-table-column
                label="user"
@@ -44,7 +44,7 @@
                 </template>
               </el-table-column>
               <el-table-column
-               prop="merged"
+               prop="closed"
                label="contribute"
                sortable
                :sort-orders=  "['ascending', 'descending']"
@@ -60,11 +60,10 @@
 <script>
 /* rank_data = [
   {
-    'merged':<int>,
     'open':<int>,
     'open_draft':<int>,
-    'close':<int>,
-    'close_draft':<int>,
+    'closed':<int>,
+    'closed_draft':<int>,
     'uid':<int>,
     'uname':<str>,
 
@@ -76,11 +75,11 @@ tableDataAll = []
 rank_data.forEach((v,i) => {
   v.icon = "<img src='https://avatars2.githubusercontent.com/u/" + v.uid + "?s=40' style='width:40px;height:40px;' alt='" + v.uname + "' />";
   console.log(v.icon);
-  if (v.merged > 0)
+  if (v.closed > 0)
     tableDataAll.push(v);
 });
 tableDataAll.sort((a,b)=>{
-  return b.merged - a.merged;
+  return b.closed - a.closed;
 });
 </script>
 <script src="{{url_for('static', filename='rank.js')}}"> </script>
