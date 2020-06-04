@@ -191,10 +191,10 @@ def update_contribute():
     if args.token != '':
         headers.update({'Authorization':'token {}'.format(args.token)})
         auth = None
-    elif args.user == '' and args.secret == '':
+    elif args.user == '' and args.token == '':
         auth = None
     else:
-        auth = HTTPBasicAuth(args.user, args.secret)
+        auth = HTTPBasicAuth(args.user, args.password)
 
     # process each page
     for data in search_all(base_url, headers, auth, url_args):
