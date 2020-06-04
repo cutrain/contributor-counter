@@ -46,6 +46,7 @@ def search_all(base_url, headers, auth, url_args):
     '''
     global logger
     page_template = '&page={page}'
+    # get the last page which already counted
     page = r.hget(repo, 'last_page')
     if page is None:
         page = 1
@@ -64,8 +65,8 @@ def search_all(base_url, headers, auth, url_args):
             # Check status code
             if res.status_code == 200:
                 res = json.loads(res.text)
-                logger.info("get json data")
                 l = len(res)
+                logger.info("get json data")
                 logger.info("get {} data".format(l))
                 logger.debug(res)
                 if l == 0:
@@ -80,6 +81,7 @@ def search_all(base_url, headers, auth, url_args):
                 logger.info('get status code {}, wait 5 seconds'.format(res.status_code))
                 sleep(5)
                 logger.info('retry')
+
         except KeyboardInterrupt:
             exit(0)
         except GeneratorExit:
