@@ -48,6 +48,6 @@ python3 app.py --host=<host> --port=<port> --redis_host=localhost --redis_port=6
 ## Others
 using github API
 ```url
-https://api.github.com/search/issues?q={repo}+type:pr+updated:>={date}&sort=updated&type=Issues&order=asc&per_page=100&page={page}
+https://api.github.com/repos/{repo}/pulls?type=pr&state=closed&sort=asc&per_page=100&page={page}
 ```
 

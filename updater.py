@@ -7,7 +7,6 @@ import requests
 import argparse
 
 from time import sleep
-from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
 def set_logger():
@@ -61,23 +60,17 @@ def search_all(base_url, headers, auth, url_args):
             # Check status code
             if res.status_code == 200:
                 res = json.loads(res.text)
-                total_count = res['total_count']
                 logger.info("get json data")
-                logger.info("total count : {} at page : {}".format(total_count, page))
+                l = len(res)
+                logger.info("get {} data".format(l))
                 logger.debug(res)
-                yield res['items']
-                if page*100 >= total_count:
-                    logger.info('search reach the end')
+                if l == 0:
                     return
+                yield res
                 page += 1
             elif res.status_code == 404:
                 logger.info('404')
                 return
-            elif res.status_code == 422:
-                logger.info('reach search limit')
-                url_args['date'] = r.hget(repo, 'newest_date')[:10]
-                url = base_url.format(**url_args)
-                page = 1
             else:
                 logger.info('get status code {}, wait 5 seconds'.format(res.status_code))
                 sleep(5)
@@ -91,10 +84,6 @@ def search_all(base_url, headers, auth, url_args):
             logger.info('get an error, wait 5 seconds')
             sleep(5)
             logger.info('retry')
-
-def strptime(date):
-    format_str = '%Y-%m-%dT%H:%M:%SZ'
-    return datetime.strptime(date, format_str)
 
 def get_user_data(uid, uname):
     global r, repo
@@ -128,15 +117,6 @@ def change_user_data(user_data, pr_data, value):
 def store_contribute(data):
     global r, repo
     for pr in data:
-        update_date = strptime(pr['updated_at'])
-        create_date = strptime(pr['created_at'])
-        newest_date = r.hget(repo, 'newst_date')
-        if newest_date is None:
-            newest_date = "2000-01-01T00:00:00Z"
-        newest_date = strptime(newest_date)
-
-        if update_date < newest_date:
-            continue
 
         pr_data = {
             'pr_id':pr['id'],
@@ -165,23 +145,15 @@ def store_contribute(data):
             pr_key:json.dumps(pr_data),
             user_key:json.dumps(user_data),
         }
-        if create_date > newest_date:
-            change_map.update({'newest_date': pr['created_at']})
         r.hmset(repo, change_map)
 
 def update_contribute():
     global r, args, repo
-    date = r.hget(repo, 'newest_date')
-    if date is None:
-        date = "2000-01-01"
-    else:
-        date = date[:10]
 
     url_args = {
-        'date':date,
         'repo':repo,
     }
-    base_url = "https://api.github.com/search/issues?q={repo}+type:pr+updated:>={date}&sort=updated&type=Issues&order=asc&per_page=100"
+    base_url = 'https://api.github.com/repos/{repo}/pulls?type=pr&state=closed&sort=asc&per_page=100'
     # initial http parameters
     headers = {
         'User-Agent':args.user if args.user != '' else 'contributor-counter',

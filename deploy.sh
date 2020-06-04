@@ -47,4 +47,4 @@ doo 'sudo apt-get install python3-dev python3-pip redis-server -y'
 
 doo 'pip3 install -r requirements.txt'
 doo 'python3 updater.py --repo=$REPO --user=$USER --password=$PASSWORD --token=$TOKEN --redis_host=$REDIS_HOST --redis_port=$REDIS_PORT --redis_db=$REDIS_DB &'
-doo 'python3 app.py --host=$HOST --port=$PORT --redis_host=$REDIS_HOST --redis_port=$REDIS_PORT --redis_db=$REDIS_DB &'
+doo 'python3 app.py --host=$HOST --port=$PORT --redis_host=$REDIS_HOST --redis_port=$REDIS_PORT --redis_db=$REDIS_DB'
