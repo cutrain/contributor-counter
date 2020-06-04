@@ -1,10 +1,10 @@
 # Contributor Counter
-This is a service showwing the contribute of specific repo
+This is a service showing the contribute of specific repo
 
 ## Usage
 
 ### Auto Deployment
-If you are using Ubuntu, try this bash to auto deplyment
+If you are using Ubuntu, try running this script for automatic deplyment
 
 You may need to change the *USER* and *PASSWORD* or *TOKEN* at the top of the bash, then
 ```bash
